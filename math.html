@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Math Tables & Learning</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: white;
+    color: black;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: auto;
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+button {
+    padding: 10px;
+    margin: 5px;
+    border-radius: 6px;
+    border: none;
+    background: black;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button.gray { background: #555; }
+button.green { background: #16a34a; }
+button.yellow { background: #ca8a04; }
+button.red { background: #dc2626; }
+
+.section {
+    margin-top: 20px;
+}
+
+.box {
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.workspace {
+    font-family: monospace;
+    background: #f9fafb;
+    border: 2px dashed #444;
+    padding: 15px;
+    margin-top: 10px;
+    white-space: pre;
+    font-size: 22px;
+    min-height: 120px;
+}
+
+.correct { color: green; }
+.wrong { color: red; }
+
+input {
+    padding: 8px;
+    width: 100%;
+    margin-top: 5px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h1>📘 Math Tables & Learning</h1>
+
+<!-- TABLES -->
+<div id="tablesSection" class="section">
+    <h2>📊 Math Tables</h2>
+    <div id="tableButtons"></div>
+    <button onclick="showEvenTables()">🔢 Learn Even Tables</button>
+    <div id="tableResult" class="box"></div>
+
+    <hr>
+
+    <h2>🎲 Practice Quizzes</h2>
+    <button onclick="chooseDifficulty('add')">Addition</button>
+    <button onclick="chooseDifficulty('sub')">Subtraction</button>
+    <button onclick="chooseDifficulty('mul')">Multiplication</button>
+    <button onclick="chooseDifficulty('div')">Division</button>
+</div>
+
+<!-- DIFFICULTY -->
+<div id="difficultySection" class="section" style="display:none;">
+    <h2>Choose Difficulty</h2>
+    <button class="green" onclick="startQuiz('easy')">Easy</button>
+    <button class="yellow" onclick="startQuiz('medium')">Medium</button>
+    <button class="red" onclick="startQuiz('hard')">Hard</button>
+    <br><br>
+    <button class="gray" onclick="backToTables()">⬅ Cancel</button>
+</div>
+
+<!-- QUIZ -->
+<div id="quizSection" class="section" style="display:none;">
+    <h2 id="quizTitle"></h2>
+    <div id="quiz" class="box"></div>
+    <h2 id="score"></h2>
+
+    <button id="showWorkBtn" class="gray" style="display:none;" onclick="toggleWorkspace()">
+        📒 Show Work (Animated)
+    </button>
+
+    <div id="workspace" class="workspace" style="display:none;"></div>
+
+    <button id="backBtn" class="gray" style="display:none;" onclick="backToTables()">
+        ⬅ Back to Math Tables
+    </button>
+</div>
+</div>
+
+<script>
+/* TABLES */
+for (let i = 1; i <= 20; i++) {
+    let b = document.createElement("button");
+    b.innerText = i;
+    b.onclick = () => showTable(i);
+    tableButtons.appendChild(b);
+}
+
+function showTable(n) {
+    let h = `<h3>Table of ${n}</h3>`;
+    for (let i = 1; i <= 10; i++) h += `${n} × ${i} = ${n*i}<br>`;
+    tableResult.innerHTML = h;
+}
+
+function showEvenTables() {
+    let h = `<h3>Even Tables (2–20)</h3>`;
+    for (let n = 2; n <= 20; n += 2) {
+        h += `<b>Table of ${n}</b><br>`;
+        for (let i = 1; i <= 10; i++) h += `${n} × ${i} = ${n*i}<br>`;
+        h += "<br>";
+    }
+    tableResult.innerHTML = h;
+}
+
+/* QUIZ */
+let quizType = "";
+let quizData = [];
+
+function chooseDifficulty(type) {
+    quizType = type;
+    tablesSection.style.display = "none";
+    difficultySection.style.display = "block";
+}
+
+function startQuiz(level) {
+    difficultySection.style.display = "none";
+    quizSection.style.display = "block";
+    score.innerText = "";
+    quiz.innerHTML = "";
+    workspace.innerHTML = "";
+    workspace.style.display = "none";
+    showWorkBtn.style.display = "none";
+    backBtn.style.display = "none";
+    quizData = [];
+
+    let max = level === "easy" ? 5 : level === "medium" ? 10 : 20;
+
+    quizTitle.innerText =
+        (quizType === "add" ? "Addition" :
+         quizType === "sub" ? "Subtraction" :
+         quizType === "mul" ? "Multiplication" : "Division")
+        + ` (${level.toUpperCase()})`;
+
+    for (let i = 0; i < 10; i++) {
+        let a = Math.floor(Math.random()*max)+1;
+        let b = Math.floor(Math.random()*max)+1;
+        let q="", ans=0;
+
+        if (quizType === "add") { q=`${a}+${b}`; ans=a+b; }
+        if (quizType === "sub") { let x=Math.max(a,b), y=Math.min(a,b); q=`${x}-${y}`; ans=x-y; }
+        if (quizType === "mul") { q=`${a}×${b}`; ans=a*b; }
+        if (quizType === "div") { ans=a; q=`${a*b}÷${b}`; }
+
+        quizData.push({a,b,ans,q});
+        quiz.innerHTML += `<p>${q} = <input id="q${i}"> <span id="f${i}"></span></p>`;
+    }
+
+    quiz.innerHTML += `<button onclick="checkQuiz()">Submit</button>`;
+}
+
+function checkQuiz() {
+    let correct = 0;
+    workspace.innerHTML = "";
+
+    quizData.forEach((q,i)=>{
+        let u = parseInt(document.getElementById("q"+i).value);
+        let f = document.getElementById("f"+i);
+        if (u === q.ans) { f.innerHTML="✔"; f.className="correct"; correct++; }
+        else { f.innerHTML="✖"; f.className="wrong"; }
+    });
+
+    score.innerText = `Score: ${Math.round((correct/quizData.length)*100)}%`;
+    showWorkBtn.style.display = "inline-block";
+    backBtn.style.display = "inline-block";
+}
+
+function toggleWorkspace() {
+    workspace.style.display = workspace.style.display==="none"?"block":"none";
+    if (workspace.innerHTML==="") animateWorkspace();
+}
+
+/* ANIMATED COLUMN WORK */
+function animateWorkspace() {
+    let i = 0;
+    function pad(a,b){let l=Math.max(a.length,b.length);return[a.padStart(l," "),b.padStart(l," ")];}
+    function type(txt){let j=0;let t=setInterval(()=>{workspace.textContent+=txt[j++];if(j>=txt.length)clearInterval(t);},40);}
+
+    quizData.forEach(q=>{
+        let out="";
+        if (quizType==="add") {
+            let [x,y]=pad(q.a.toString(),q.b.toString());
+            out=`  ${x}\n+ ${y}\n${"-".repeat(x.length+2)}\n  ${q.ans}\n\n`;
+        }
+        if (quizType==="sub") {
+            let x=Math.max(q.a,q.b).toString(), y=Math.min(q.a,q.b).toString();
+            let [a,b]=pad(x,y);
+            out=`  ${a}\n- ${b}\n${"-".repeat(a.length+2)}\n  ${q.ans}\n\n`;
+        }
+        if (quizType==="mul") {
+            let [x,y]=pad(q.a.toString(),q.b.toString());
+            out=`  ${x}\n× ${y}\n${"-".repeat(x.length+2)}\n  ${q.ans}\n\n`;
+        }
+        if (quizType==="div") {
+            out=`${q.b} ) ${q.a*q.b}\n     ${q.ans}\n\n`;
+        }
+        type(out);
+    });
+}
+
+function backToTables() {
+    quizSection.style.display="none";
+    difficultySection.style.display="none";
+    tablesSection.style.display="block";
+    quiz.innerHTML="";
+    score.innerText="";
+    workspace.innerHTML="";
+}
+</script>
+
+</body>
+</html>
