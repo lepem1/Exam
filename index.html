@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Question Answer System</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: white;
+    color: black;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+input, button, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border-radius: 6px;
+    border: 1px solid #aaa;
+}
+
+button {
+    background: black;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button.gray { background: #555; }
+button.red { background: #dc2626; }
+
+.question-item {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 6px;
+}
+
+.correct { color: green; }
+.wrong { color: red; }
+
+#timer {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* Popup */
+#popup {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+}
+#popupContent {
+    background: white;
+    padding: 20px;
+    max-width: 300px;
+    margin: 15% auto;
+    text-align: center;
+    border-radius: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h1>Question Answer System</h1>
+
+<!-- CREATE MODE -->
+<div id="createSection">
+    <h3>Create Question</h3>
+
+    <select id="typeInput" onchange="updateCreateUI()">
+        <option value="normal">Normal</option>
+        <option value="blank">Fill in the Blanks</option>
+        <option value="tf">True / False</option>
+    </select>
+
+    <input id="questionInput" placeholder="Enter question (use ____ for blanks)">
+    <input id="answerInput" placeholder="Correct answer">
+
+    <!-- TRUE/FALSE ANSWER -->
+    <select id="tfAnswer" style="display:none;">
+        <option value="true">True</option>
+        <option value="false">False</option>
+    </select>
+
+    <!-- FILL BLANK OPTIONS -->
+    <div id="choicesSection" style="display:none;">
+        <input id="wrongChoiceInput" placeholder="Wrong choice">
+        <select id="choiceMode">
+            <option value="choices">Enable Choices</option>
+            <option value="typing">Disable Choices (Typing)</option>
+        </select>
+    </div>
+
+    <button onclick="addQuestion()">Add Question</button>
+
+    <h3>Timer</h3>
+    <input id="timerInput" type="number" placeholder="Timer seconds">
+    <button onclick="enableTimer()">ENABLE TIMER</button>
+    <button class="gray" onclick="disableTimer()">DISABLE TIMER</button>
+
+    <h3>Created Questions</h3>
+    <div id="createdList"></div>
+
+    <button class="gray" onclick="stopCreation()">STOP SHOWING</button>
+</div>
+
+<!-- ANSWER MODE -->
+<div id="answerSection" style="display:none;">
+    <div id="timer"></div>
+    <div id="questions"></div>
+    <button onclick="checkAnswers()">Submit</button>
+    <h2 id="result"></h2>
+
+    <button id="restartBtn" style="display:none;" onclick="restartSystem()">
+        Wanna make questions again?
+    </button>
+</div>
+</div>
+
+<!-- POPUP -->
+<div id="popup">
+<div id="popupContent">
+    <img src="https://i.imgur.com/4NZ6uLY.png" width="120">
+    <h3>RIGHT! GOOD JOB 🎉</h3>
+</div>
+</div>
+
+<script>
+let questions = [];
+let timerEnabled = false;
+let timerSeconds = 0;
+let interval = null;
+
+const questionsDiv = document.getElementById("questions");
+
+/* UI SWITCH */
+
+function updateCreateUI() {
+    const type = typeInput.value;
+    answerInput.style.display = type === "tf" ? "none" : "block";
+    tfAnswer.style.display = type === "tf" ? "block" : "none";
+    choicesSection.style.display = type === "blank" ? "block" : "none";
+}
+
+/* ADD QUESTION */
+
+function addQuestion() {
+    const q = questionInput.value.trim();
+    const t = typeInput.value;
+
+    if (!q) return alert("Enter question");
+
+    let obj = { question: q, type: t };
+
+    if (t === "normal") {
+        obj.answer = answerInput.value.trim();
+        if (!obj.answer) return alert("Enter answer");
+    }
+
+    if (t === "blank") {
+        obj.answer = answerInput.value.trim();
+        obj.wrong = wrongChoiceInput.value.trim();
+        obj.mode = choiceMode.value;
+        if (!obj.answer) return alert("Enter correct answer");
+    }
+
+    if (t === "tf") {
+        obj.answer = tfAnswer.value; // true / false
+    }
+
+    questions.push(obj);
+
+    questionInput.value = "";
+    answerInput.value = "";
+    wrongChoiceInput.value = "";
+    renderCreated();
+}
+
+function renderCreated() {
+    createdList.innerHTML = "";
+    questions.forEach((q, i) => {
+        createdList.innerHTML += `
+        <div class="question-item">
+            <b>${q.question}</b><br>
+            Type: ${q.type}
+            <button class="red" onclick="removeQuestion(${i})">Remove</button>
+        </div>`;
+    });
+}
+
+function removeQuestion(i) {
+    questions.splice(i, 1);
+    renderCreated();
+}
+
+/* TIMER */
+
+function enableTimer() {
+    const t = parseInt(timerInput.value);
+    if (!t) return alert("Enter seconds");
+    timerEnabled = true;
+    timerSeconds = t;
+}
+
+function disableTimer() {
+    timerEnabled = false;
+    timerSeconds = 0;
+}
+
+/* START */
+
+function stopCreation() {
+    if (!questions.length) return alert("Add questions");
+    createSection.style.display = "none";
+    answerSection.style.display = "block";
+    renderQuestions();
+    startTimer();
+}
+
+/* RENDER QUESTIONS */
+
+function renderQuestions() {
+    questionsDiv.innerHTML = "";
+    questions.forEach((q, i) => {
+        let inputHTML = "";
+
+        if (q.type === "tf") {
+            inputHTML = `
+            <select id="user${i}">
+                <option value="">Select</option>
+                <option value="true">True</option>
+                <option value="false">False</option>
+            </select>`;
+        }
+        else if (q.type === "blank" && q.mode === "choices") {
+            inputHTML = `
+            <select id="user${i}">
+                <option value="">Select</option>
+                <option value="${q.answer}">${q.answer}</option>
+                <option value="${q.wrong}">${q.wrong}</option>
+            </select>`;
+        }
+        else {
+            inputHTML = `<input id="user${i}" placeholder="Your answer">`;
+        }
+
+        questionsDiv.innerHTML += `
+        <div class="question-item">
+            <p><b>Q${i + 1}:</b> ${q.question}</p>
+            ${inputHTML}
+            <p id="feedback${i}"></p>
+        </div>`;
+    });
+}
+
+/* TIMER */
+
+function startTimer() {
+    if (!timerEnabled) return;
+    timer.innerText = `Time Left: ${timerSeconds}s`;
+
+    interval = setInterval(() => {
+        timerSeconds--;
+        timer.innerText = `Time Left: ${timerSeconds}s`;
+        if (timerSeconds <= 0) {
+            clearInterval(interval);
+            checkAnswers();
+        }
+    }, 1000);
+}
+
+/* CHECK ANSWERS */
+
+function checkAnswers() {
+    if (interval) clearInterval(interval);
+    let correct = 0;
+
+    questions.forEach((q, i) => {
+        const user = document.getElementById("user" + i)?.value;
+        const fb = document.getElementById("feedback" + i);
+
+        if (user === q.answer) {
+            fb.innerHTML = "✔ Correct";
+            fb.className = "correct";
+            correct++;
+            showPopup();
+        } else {
+            fb.innerHTML = `✖ Wrong | Correct: <b>${q.answer}</b>`;
+            fb.className = "wrong";
+        }
+    });
+
+    result.innerText = `Score: ${Math.round((correct / questions.length) * 100)}%`;
+    restartBtn.style.display = "block";
+}
+
+/* RESET */
+
+function restartSystem() {
+    questions = [];
+    timerEnabled = false;
+    timerSeconds = 0;
+    questionsDiv.innerHTML = "";
+    createdList.innerHTML = "";
+    result.innerText = "";
+    restartBtn.style.display = "none";
+    timer.innerText = "";
+    answerSection.style.display = "none";
+    createSection.style.display = "block";
+}
+
+/* POPUP */
+
+function showPopup() {
+    popup.style.display = "block";
+    setTimeout(() => popup.style.display = "none", 800);
+}
+</script>
+
+</body>
+</html>
